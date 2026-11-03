@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>LLG Bodega Laredo</title>
+<meta name="robots" content="noindex, nofollow">
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg:#0f1117; --bg2:#161b27; --bg3:#1e2535; --border:rgba(255,255,255,.09);
+    --text:#e8eaf0; --muted:#8b96a5; --accent:#22c55e; --accent2:#3b82f6;
+    --warn:#f59e0b; --danger:#ef4444; --salida:#f97316;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',-apple-system,sans-serif; margin:0; }
+  .page { max-width:520px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .subtitle { color:var(--muted); font-size:13px; margin-bottom:20px; }
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:16px; }
+  .card h2 { font-size:14px; margin:0 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  button { font-size:17px; font-weight:700; padding:16px 20px; border-radius:12px; border:none; cursor:pointer; width:100%; }
+  button.primary { background:var(--accent2); color:#fff; }
+  button.ghost { background:var(--bg3); color:var(--text); border:1px solid var(--border); }
+  button.llego { background:var(--accent); color:#04150a; font-size:20px; padding:20px; }
+  button.salio { background:var(--salida); color:#1a0a00; font-size:20px; padding:20px; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .progreso { background:var(--bg3); border-radius:12px; padding:12px; margin-bottom:14px; }
+  .progreso .titulo { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
+  .progreso .fila-p { display:flex; justify-content:space-between; font-size:14px; margin:8px 0 4px; }
+  .progreso .fila-p b { font-size:16px; }
+  .barra { height:10px; background:rgba(255,255,255,.08); border-radius:6px; overflow:hidden; }
+  .barra i { display:block; height:100%; background:var(--accent2); border-radius:6px; }
+  .barra.salida i { background:var(--salida); }
+  .barra.lista i { background:var(--accent); }
+  .progreso .aviso-p { font-size:12px; color:var(--warn); margin-top:8px; }
+  .completa { background:rgba(34,197,94,.18); border:2px solid var(--accent); color:#4ade80; border-radius:14px; padding:16px; text-align:center; font-weight:800; font-size:19px; margin-bottom:14px; }
+  .completa small { display:block; font-weight:600; font-size:13px; margin-top:4px; color:var(--text); }
+  .aviso-lectura { position:fixed; top:12px; left:12px; right:12px; z-index:100; padding:18px; border-radius:14px; font-weight:800; font-size:20px; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  .aviso-lectura.ok { background:#16a34a; color:#fff; }
+  .aviso-lectura.mal { background:#dc2626; color:#fff; }
+  .foto-bloque { margin-bottom:14px; text-align:center; }
+  .foto-bloque img { width:100%; max-height:240px; object-fit:cover; border-radius:12px; margin-bottom:10px; display:block; }
+  .foto-btn { position:relative; display:block; background:var(--bg3); border:2px dashed var(--border); border-radius:12px; padding:16px; font-weight:700; cursor:pointer; }
+  .foto-btn.lista { border-style:solid; border-color:var(--accent); }
+  .foto-btn input { position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer; }
+  .botones { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  input[type=text] { width:100%; font-size:18px; padding:14px; border-radius:12px; border:1px solid var(--border); background:var(--bg3); color:var(--text); font-family:'DM Mono',monospace; }
+  .fila { display:flex; gap:8px; }
+  .fila button { width:auto; white-space:nowrap; }
+  #video { width:100%; border-radius:12px; background:#000; display:block; margin-top:10px; }
+  .uuid-box { font-family:'DM Mono',monospace; font-size:22px; font-weight:800; text-align:center; padding:12px; background:var(--bg3); border-radius:12px; margin-bottom:12px; letter-spacing:.03em; }
+  .info { text-align:center; margin-bottom:14px; }
+  .info .q { font-size:24px; font-weight:800; }
+  .info .cli { color:var(--muted); font-size:14px; margin-top:4px; }
+  .estado { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .estado div { background:var(--bg3); border-radius:12px; padding:10px; text-align:center; font-size:13px; color:var(--muted); }
+  .estado b { display:block; color:var(--text); font-size:15px; margin-top:4px; }
+  .msg { text-align:center; padding:14px; border-radius:12px; font-weight:700; margin-bottom:14px; }
+  .msg.error { background:rgba(239,68,68,.15); color:#f87171; }
+  .msg.ok { background:rgba(34,197,94,.15); color:#4ade80; }
+  .msg.info { background:rgba(59,130,246,.15); color:#93c5fd; }
+  .oculto { display:none !important; }
+  .nombre { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); margin-bottom:16px; }
+  .nombre input { font-size:15px; padding:10px; font-family:inherit; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 4px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:600; }
+  .tag { font-weight:700; }
+  .tag.entrada { color:var(--accent); }
+  .tag.salida { color:var(--salida); }
+  .login { max-width:360px; margin:40px auto 0; }
+  .login input { width:100%; font-size:18px; padding:14px; border-radius:12px; border:1px solid var(--border); background:var(--bg3); color:var(--text); margin-bottom:10px; font-family:inherit; }
+  .salir { text-align:right; margin:-8px 0 10px; font-size:12px; } .salir a { color:var(--muted); cursor:pointer; text-decoration:underline; }
+</style>
+</head>
+<body>
+<div id="aviso-lectura" class="aviso-lectura oculto"></div>
+<div class="page">
+  <h1>🏭 LLG · Bodega Laredo</h1>
+  <div class="subtitle">Escanea cualquier etiqueta del burrito (calidad, lado A o lado B) y marca si llegó o salió.<br>Scan any burrito label (QA, side A or side B) and mark arrival or departure.</div>
+
+  <div class="card login oculto" id="vista-acceso">
+    <h2>Acceso / Access</h2>
+    <input type="password" id="clave-acceso" placeholder="Clave de acceso / Access code" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter'){entrar()}">
+    <button class="primary" onclick="entrar()">Entrar / Enter</button>
+    <div id="msg-acceso" style="margin-top:12px"></div>
+  </div>
+
+  <div id="app-protegida" class="oculto">
+  <div class="salir"><a onclick="salirAcceso()">Cerrar sesión / Sign out</a></div>
+  <div class="nombre">
+    <span>Quién escanea / Scanned by:</span>
+    <input type="text" id="escaneado-por" placeholder="Nombre / Name" onchange="guardarNombre()">
+  </div>
+
+  <div class="card" id="paso-scan">
+    <h2>1. Escanear / Scan</h2>
+    <button class="primary" id="btn-camara" style="font-size:20px;padding:20px" onclick="toggleCamara()">📷 Escanear con cámara / Scan with camera</button>
+    <video id="video" class="oculto" muted playsinline></video>
+    <button class="ghost oculto" id="btn-linterna" style="margin-top:10px" onclick="toggleLinterna()">🔦 Linterna / Flashlight</button>
+    <div id="msg-scan" style="margin-top:12px"></div>
+    <div style="color:var(--muted);font-size:13px;margin:12px 0 6px">O escribe el código / Or type the code:</div>
+    <div class="fila">
+      <input type="text" id="codigo" placeholder="Código / Code" autocomplete="off" autocapitalize="off"
+             onkeydown="if(event.key==='Enter'){buscarCodigo(this.value)}">
+      <button class="ghost" onclick="buscarCodigo(document.getElementById('codigo').value)">OK</button>
+    </div>
+  </div>
+
+  <div class="card oculto" id="paso-marcar">
+    <h2>2. Marcar / Mark</h2>
+    <div class="uuid-box" id="uuid-mostrado"></div>
+    <div class="info" id="burrito-info"></div>
+    <div class="progreso oculto" id="progreso-q"></div>
+    <div class="estado">
+      <div>Llegó / Arrived<b id="estado-entrada">—</b></div>
+      <div>Salió / Departed<b id="estado-salida">—</b></div>
+    </div>
+    <div class="foto-bloque" id="foto-bloque">
+      <img id="foto-prev" class="oculto" alt="">
+      <label class="foto-btn" id="foto-label">
+        <span id="foto-texto">📷 Tomar foto del burrito / Take photo</span>
+        <input type="file" accept="image/*" capture="environment" id="foto-input" onchange="fotoTomada(this)">
+      </label>
+    </div>
+    <div id="msg-marcar"></div>
+    <div class="botones">
+      <button class="llego" id="btn-llego" onclick="marcar('entrada')">✓ Llegó<br><small>Arrived</small></button>
+      <button class="salio" id="btn-salio" onclick="marcar('salida')">➜ Salió<br><small>Departed</small></button>
+    </div>
+    <button class="ghost" onclick="reiniciar()">Escanear otro / Scan another</button>
+  </div>
+
+  <div class="card">
+    <h2>Últimos movimientos / Recent</h2>
+    <div id="recientes"><div class="cli" style="color:var(--muted)">Cargando…</div></div>
+  </div>
+  </div>
+</div>
+
+<script>
+const SUP_URL = "https://xzwlbrirzfogbqhywtvj.supabase.co";
+const SUP_KEY = "sb_publishable_tCmUG5g7RZbqPPFD3G4U7w_jLrsu01G";
+const HDR = { apikey: SUP_KEY, Authorization: `Bearer ${SUP_KEY}` };
+let clave = '';
+try { clave = localStorage.getItem('llg_clave') || ''; } catch (e) {}
+
+function mostrarAcceso(si) {
+  document.getElementById('vista-acceso').classList.toggle('oculto', !si);
+  document.getElementById('app-protegida').classList.toggle('oculto', si);
+}
+
+async function claveCorrecta(c) {
+  const res = await fetch(`${SUP_URL}/rest/v1/rpc/llg_validar_clave`, {
+    method: 'POST', headers: { ...HDR, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_clave: c }) });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  return (await res.json()) === true;
+}
+
+async function entrar() {
+  const msg = document.getElementById('msg-acceso');
+  const c = document.getElementById('clave-acceso').value.trim();
+  if (!c) return;
+  msg.innerHTML = '<div class="msg info">Verificando… / Checking…</div>';
+  try {
+    if (!(await claveCorrecta(c))) { msg.innerHTML = '<div class="msg error">Clave incorrecta / Wrong code</div>'; return; }
+    clave = c;
+    try { localStorage.setItem('llg_clave', c); } catch (e) {}
+    document.getElementById('clave-acceso').value = '';
+    msg.innerHTML = '';
+    mostrarAcceso(false);
+    cargarRecientes();
+  } catch (e) {
+    msg.innerHTML = `<div class="msg error">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function salirAcceso() {
+  clave = '';
+  try { localStorage.removeItem('llg_clave'); } catch (e) {}
+  detenerCamara();
+  mostrarAcceso(true);
+}
+
+let burrito = null;      // fila de `burritos` del codigo escaneado
+let registro = null;     // fila de `llg_burritos` (null si nunca se ha marcado)
+let codigoLeido = '';
+let codeReader = null;
+let ocupado = false;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = iso => iso ? new Date(iso).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+
+// Las 3 etiquetas del burrito: calidad = uuid; lado A = uuid+"A"; lado B = uuid+"B" (Code39, suele leerse en mayusculas)
+function normalizarCodigo(texto) {
+  let c = String(texto || '').trim().toLowerCase().replace(/[^0-9a-z]/g, '');
+  if (c.length === 13 && (c.endsWith('a') || c.endsWith('b'))) c = c.slice(0, 12);
+  return /^[0-9a-f]{12}$/.test(c) ? c : null;
+}
+
+function nombre() { return document.getElementById('escaneado-por').value.trim(); }
+function guardarNombre() { try { localStorage.setItem('llg_nombre', nombre()); } catch (e) {} }
+try { document.getElementById('escaneado-por').value = localStorage.getItem('llg_nombre') || ''; } catch (e) {}
+
+async function sb(path, opts = {}) {
+  const res = await fetch(`${SUP_URL}/rest/v1/${path}`, { ...opts, headers: { ...HDR, ...(opts.headers || {}) } });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  const t = await res.text();
+  return t ? JSON.parse(t) : null;
+}
+
+async function buscarCodigo(texto) {
+  if (ocupado) return;
+  const msg = document.getElementById('msg-scan');
+  codigoLeido = String(texto || '').trim();
+  const uuid = normalizarCodigo(codigoLeido);
+  if (!uuid) {
+    msg.innerHTML = `<div class="msg error">Código no válido / Invalid code: ${esc(codigoLeido)}</div>`;
+    return;
+  }
+  ocupado = true;
+  detenerCamara();
+  msg.innerHTML = '<div class="msg info">Buscando… / Searching…</div>';
+  try {
+    const [b, r] = await Promise.all([
+      sb(`burritos?uuid=eq.${uuid}&select=uuid,orden,cliente,po_cliente,tipo_paquete,piezas,cerrado`),
+      sb(`llg_burritos?package_uuid=eq.${uuid}&select=*`),
+    ]);
+    if (!b || !b.length) {
+      msg.innerHTML = `<div class="msg error">No existe ese burrito / Burrito not found: ${esc(uuid)}</div>`;
+      avisoLectura('✗ No existe ese burrito / Not found', false);
+      return;
+    }
+    burrito = b[0];
+    registro = r && r.length ? r[0] : null;
+    msg.innerHTML = '';
+    document.getElementById('codigo').value = '';
+    pintarMarcar();
+    progresoPrevio = null;
+    document.getElementById('progreso-q').classList.add('oculto');
+    refrescarProgreso(null);       // "llevas X de Y" de la orden de este burrito
+  } catch (err) {
+    msg.innerHTML = `<div class="msg error">Error: ${esc(err.message)}</div>`;
+  } finally {
+    ocupado = false;
+  }
+}
+
+function pintarMarcar() {
+  document.getElementById('uuid-mostrado').textContent = burrito.uuid;
+  document.getElementById('burrito-info').innerHTML =
+    `<div class="q">${esc(burrito.orden || '—')}</div>` +
+    `<div class="cli">${esc(burrito.cliente || '')}${burrito.po_cliente ? ' · PO ' + esc(burrito.po_cliente) : ''}</div>` +
+    `<div class="cli">${esc(burrito.tipo_paquete || '')} · ${esc(burrito.piezas ?? '?')} piezas / pieces</div>`;
+  document.getElementById('estado-entrada').textContent = fmt(registro && registro.entrada_en);
+  document.getElementById('estado-salida').textContent = fmt(registro && registro.salida_en);
+  document.getElementById('msg-marcar').innerHTML = '';
+  pintarFoto();
+  actualizarBotones();
+  if (registro && registro.entrada_en && registro.salida_en) {
+    document.getElementById('msg-marcar').innerHTML = '<div class="msg info">Este burrito ya llegó y ya salió / Already arrived and departed</div>';
+  }
+  document.getElementById('paso-scan').classList.add('oculto');
+  document.getElementById('paso-marcar').classList.remove('oculto');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// "Llegó" solo si aún no tiene llegada y ya se tomó la foto; "Salió" solo si aún no tiene salida
+function actualizarBotones() {
+  document.getElementById('btn-llego').disabled = !!(registro && registro.entrada_en) || !fotoBlob;
+  document.getElementById('btn-salio').disabled = !!(registro && registro.salida_en);
+}
+
+// ── Foto del burrito (se toma al darle Llegó) ──────────────────────────────
+let fotoBlob = null;   // JPEG ya reducido, listo para subir
+
+function pintarFoto() {
+  const yaLlego = !!(registro && registro.entrada_en);
+  const img = document.getElementById('foto-prev');
+  const label = document.getElementById('foto-label');
+  const url = fotoBlob ? URL.createObjectURL(fotoBlob) : (registro && registro.foto_url) || '';
+  img.classList.toggle('oculto', !url);
+  if (url) img.src = url;
+  label.classList.toggle('lista', !!url);
+  document.getElementById('foto-bloque').classList.toggle('oculto', yaLlego && !url);
+  document.getElementById('foto-texto').textContent = yaLlego
+    ? '📷 Foto guardada / Photo saved'
+    : (fotoBlob ? '📷 Repetir foto / Retake photo' : '📷 Tomar foto del burrito (obligatoria) / Take photo (required)');
+  label.querySelector('input').disabled = yaLlego;
+}
+
+// Reduce la foto a máx. 1280 px y JPEG calidad 0.7 (≈ 150-250 KB) para ahorrar datos y espacio
+async function fotoTomada(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const msg = document.getElementById('msg-marcar');
+  try {
+    const url = URL.createObjectURL(file);
+    const im = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; });
+    const k = Math.min(1, 1280 / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    fotoBlob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.7));
+    msg.innerHTML = '';
+  } catch (e) {
+    fotoBlob = null;
+    msg.innerHTML = '<div class="msg error">No se pudo leer la foto / Could not read the photo</div>';
+  }
+  pintarFoto();
+  actualizarBotones();
+}
+
+async function subirFoto(uuid) {
+  const ruta = `${uuid}/${Date.now()}.jpg`;
+  const res = await fetch(`${SUP_URL}/storage/v1/object/llg-fotos/${ruta}`, {
+    method: 'POST',
+    headers: { ...HDR, 'Content-Type': 'image/jpeg', 'x-llg-clave': clave },
+    body: fotoBlob,
+  });
+  if (!res.ok) throw new Error('No se pudo subir la foto / Photo upload failed (' + res.status + ')');
+  return `${SUP_URL}/storage/v1/object/public/llg-fotos/${ruta}`;
+}
+
+// ── Progreso de la orden (Q): cuantos burritos de la Q llevan llegados y salidos ──────────────
+let progresoPrevio = null;
+
+async function calcularProgreso(q) {
+  if (!q) return null;
+  const qe = encodeURIComponent(q);
+  const [bur, llg] = await Promise.all([
+    sb(`burritos?orden=eq.${qe}&select=uuid,cerrado,cargadas`),
+    sb(`llg_burritos?orden=eq.${qe}&select=package_uuid,entrada_en,salida_en`),
+  ]);
+  const cerrados = (bur || []).filter(b => b.cerrado);
+  const enUso = (bur || []).filter(b => !b.cerrado && (b.cargadas || 0) > 0).length;   // aun en armado con piezas: la Q sigue creciendo
+  const mapa = {}; (llg || []).forEach(r => { mapa[r.package_uuid] = r; });
+  const llegados = cerrados.filter(b => mapa[b.uuid] && mapa[b.uuid].entrada_en).length;
+  const salidos = cerrados.filter(b => mapa[b.uuid] && mapa[b.uuid].salida_en).length;
+  const total = cerrados.length;
+  return { q, total, llegados, salidos, enUso,
+           completoLlegada: total > 0 && enUso === 0 && llegados >= total,
+           completoSalida: total > 0 && enUso === 0 && salidos >= total };
+}
+
+function pintarProgreso(p) {
+  const el = document.getElementById('progreso-q');
+  if (!p || !p.total) { el.classList.add('oculto'); return; }
+  const pct = n => Math.min(100, Math.round(100 * n / p.total));
+  el.innerHTML =
+    `<div class="titulo">Orden / Order ${esc(p.q)}</div>` +
+    `<div class="fila-p"><span>Llegaron / Arrived</span><b>${p.llegados} de / of ${p.total}</b></div>` +
+    `<div class="barra ${p.completoLlegada ? 'lista' : ''}"><i style="width:${pct(p.llegados)}%"></i></div>` +
+    `<div class="fila-p"><span>Salieron / Departed</span><b>${p.salidos} de / of ${p.total}</b></div>` +
+    `<div class="barra salida ${p.completoSalida ? 'lista' : ''}"><i style="width:${pct(p.salidos)}%"></i></div>` +
+    (p.enUso > 0 ? `<div class="aviso-p">⚠ Aún hay ${p.enUso} burrito(s) en armado en planta: la orden todavía no está completa. / ${p.enUso} burrito(s) still being built: the order is not complete yet.</div>` : '');
+  el.classList.remove('oculto');
+}
+
+function avisoCompleto(titulo, detalle) {
+  const html = `<div class="completa">🎉 ${titulo}<small>${detalle}</small></div>`;
+  const msg = document.getElementById('msg-marcar');
+  msg.insertAdjacentHTML('afterbegin', html);
+  const a = document.getElementById('aviso-lectura');
+  a.textContent = '🎉 ' + titulo;
+  a.className = 'aviso-lectura ok';
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => a.classList.add('oculto'), 6000);
+  try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
+  try { prepararSonido(); [660, 880, 1100, 1320].forEach((f, i) => tono(f, i * 0.13, 0.16, 0.6, 'sine')); } catch (e) {}
+}
+
+// tipoAccion: 'entrada' o 'salida' justo despues de guardar; null al solo consultar un burrito
+async function refrescarProgreso(tipoAccion) {
+  try {
+    const p = await calcularProgreso(burrito && burrito.orden);
+    pintarProgreso(p);
+    if (p && tipoAccion === 'entrada' && p.completoLlegada && !(progresoPrevio && progresoPrevio.completoLlegada)) {
+      avisoCompleto('ORDEN COMPLETA EN BODEGA / ORDER COMPLETE', `Los ${p.total} burritos de la ${esc(p.q)} ya llegaron. / All ${p.total} burritos of ${esc(p.q)} have arrived.`);
+    }
+    if (p && tipoAccion === 'salida' && p.completoSalida && !(progresoPrevio && progresoPrevio.completoSalida)) {
+      avisoCompleto('ORDEN COMPLETA CARGADA / ORDER FULLY LOADED', `Los ${p.total} burritos de la ${esc(p.q)} ya salieron. / All ${p.total} burritos of ${esc(p.q)} have left.`);
+    }
+    progresoPrevio = p;
+  } catch (e) { /* el contador es informativo: si falla no estorba al registro */ }
+}
+
+async function marcar(tipo) {
+  const msg = document.getElementById('msg-marcar');
+  const quien = nombre();
+  if (!quien) {
+    msg.innerHTML = '<div class="msg error">Escribe tu nombre arriba / Type your name above</div>';
+    document.getElementById('escaneado-por').focus();
+    return;
+  }
+  const campo = tipo === 'entrada' ? 'entrada_en' : 'salida_en';
+  const previo = registro && registro[campo];
+  if (previo && !confirm(`Ya tiene ${tipo === 'entrada' ? 'llegada' : 'salida'} el ${fmt(previo)}. ¿Reemplazar? / Already marked. Replace?`)) return;
+  if (tipo === 'salida' && !(registro && registro.entrada_en) &&
+      !confirm('Este burrito no tiene llegada registrada. ¿Marcar salida igual? / No arrival recorded. Mark departure anyway?')) return;
+
+  document.getElementById('btn-llego').disabled = true;
+  document.getElementById('btn-salio').disabled = true;
+  msg.innerHTML = '<div class="msg info">Guardando… / Saving…</div>';
+
+  // La fecha la pone Supabase (now()) dentro de llg_marcar, no el reloj del dispositivo
+  try {
+    let fotoUrl = null;
+    if (tipo === 'entrada') {
+      if (!fotoBlob) throw new Error('Falta la foto / Photo required');
+      fotoUrl = await subirFoto(burrito.uuid);
+    }
+    registro = await sb('rpc/llg_marcar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_uuid: burrito.uuid, p_tipo: tipo, p_por: quien, p_codigo: codigoLeido,
+        p_orden: burrito.orden, p_cliente: burrito.cliente, p_po: burrito.po_cliente,
+        p_tipo_paquete: burrito.tipo_paquete, p_piezas: burrito.piezas, p_clave: clave, p_foto: fotoUrl,
+      }),
+    });
+    fotoBlob = null;
+    pintarMarcar();
+    document.getElementById('msg-marcar').innerHTML =
+      `<div class="msg ok">✓ ${tipo === 'entrada' ? 'Llegada' : 'Salida'} registrada / ${tipo === 'entrada' ? 'Arrival' : 'Departure'} saved · ${fmt(registro[campo])}</div>`;
+    cargarRecientes();
+    await refrescarProgreso(tipo);   // contador "X de Y" y aviso si la orden quedo completa
+  } catch (err) {
+    if (/clave_invalida/.test(err.message)) { salirAcceso(); return; }
+    msg.innerHTML = `<div class="msg error">No se guardó / Not saved: ${esc(err.message)}</div>`;
+    actualizarBotones();
+  }
+}
+
+async function cargarRecientes() {
+  const cont = document.getElementById('recientes');
+  try {
+    const rows = await sb('llg_movimientos?select=package_uuid,orden,tipo,fecha,escaneado_por&order=fecha.desc&limit=15');
+    if (!rows || !rows.length) { cont.innerHTML = '<div style="color:var(--muted);font-size:13px">Sin movimientos todavía / No records yet</div>'; return; }
+    cont.innerHTML = '<table><tr><th>Fecha</th><th>Q</th><th>Burrito</th><th></th><th>Quién</th></tr>' +
+      rows.map(m => `<tr><td>${fmt(m.fecha)}</td><td>${esc(m.orden || '—')}</td><td style="font-family:'DM Mono',monospace">${esc(m.package_uuid)}</td>` +
+        `<td class="tag ${m.tipo}">${m.tipo === 'entrada' ? 'Llegó' : 'Salió'}</td><td>${esc(m.escaneado_por || '')}</td></tr>`).join('') + '</table>';
+  } catch (err) {
+    cont.innerHTML = `<div class="msg error">No se pudieron cargar / Could not load: ${esc(err.message)}</div>`;
+  }
+}
+
+// Aviso grande arriba de la pantalla (siempre visible), con vibracion y sonido, cada vez que la camara lee algo
+let avisoTimer = null;
+function avisoLectura(texto, ok) {
+  const a = document.getElementById('aviso-lectura');
+  a.textContent = texto;
+  a.className = 'aviso-lectura ' + (ok ? 'ok' : 'mal');
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(() => a.classList.add('oculto'), ok ? 2000 : 2500);
+  try { if (navigator.vibrate) navigator.vibrate(ok ? 200 : [80, 60, 80]); } catch (e) {}
+  sonar(ok);
+}
+
+// El navegador solo deja sonar si el audio se preparo con un toque del usuario: se prepara al tocar
+// "Escanear con cámara" y se reutiliza en cada lectura.
+let audioCtx = null;
+function prepararSonido() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {}
+}
+function tono(frecuencia, inicio, duracion, volumen, tipo) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = tipo; o.frequency.value = frecuencia;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime + inicio;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(volumen, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + duracion);
+  o.start(t); o.stop(t + duracion + 0.02);
+}
+function sonar(ok) {
+  try {
+    prepararSonido();
+    if (ok) { tono(880, 0, 0.12, 0.6, 'sine'); tono(1320, 0.14, 0.2, 0.6, 'sine'); }   // bip-BIP: leyo bien
+    else    { tono(220, 0, 0.4, 0.35, 'square'); }                                      // buzzer grave: no sirvio
+  } catch (e) {}
+}
+
+// Se llama por cada lectura de la camara. Un codigo valido se acepta a la primera: ya se valida el
+// formato y que el burrito exista; si no, avisa y sigue escaneando.
+let ultimaInvalida = 0;
+function alLeerCodigo(texto) {
+  if (ocupado) return;
+  const uuid = normalizarCodigo(texto);
+  if (uuid) {
+    avisoLectura('✓ Leído / Read: ' + uuid, true);
+    buscarCodigo(texto);
+  } else if (Date.now() - ultimaInvalida > 2500) {
+    ultimaInvalida = Date.now();
+    avisoLectura('✗ Código no válido / Invalid: ' + String(texto).slice(0, 20), false);
+  }
+}
+
+async function toggleCamara() {
+  prepararSonido();   // con el toque del usuario, para que el bip pueda sonar despues
+  if (codeReader) { detenerCamara(); usoCamara = false; return; }
+  const video = document.getElementById('video');
+  const msg = document.getElementById('msg-scan');
+  try {
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    const devices = await codeReader.listVideoInputDevices();
+    const back = devices.find(d => /back|rear|environment|trasera/i.test(d.label)) || devices[devices.length - 1];
+    video.classList.remove('oculto');
+    document.getElementById('btn-camara').textContent = '✕ Cerrar cámara / Close camera';
+    usoCamara = true;
+    await codeReader.decodeFromVideoDevice(back ? back.deviceId : undefined, 'video', (result) => {
+      if (result) alLeerCodigo(result.getText());
+    });
+    prepararLinterna();
+  } catch (err) {
+    detenerCamara();
+    usoCamara = false;
+    msg.innerHTML = `<div class="msg error">No se pudo abrir la cámara / Camera error: ${esc(err.message)}</div>`;
+  }
+}
+
+let usoCamara = false;   // si escanearon con camara, "Escanear otro" la vuelve a abrir
+let torchTrack = null, torchOn = false;
+
+function prepararLinterna() {
+  const stream = document.getElementById('video').srcObject;
+  const track = stream && stream.getVideoTracks()[0];
+  const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+  torchTrack = caps.torch ? track : null;
+  torchOn = false;
+  document.getElementById('btn-linterna').classList.toggle('oculto', !torchTrack);
+}
+
+async function toggleLinterna() {
+  if (!torchTrack) return;
+  try {
+    await torchTrack.applyConstraints({ advanced: [{ torch: !torchOn }] });
+    torchOn = !torchOn;
+  } catch (err) { /* el equipo no permite controlar la linterna */ }
+}
+
+function detenerCamara() {
+  if (codeReader) { codeReader.reset(); codeReader = null; }
+  const v = document.getElementById('video');
+  if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }   // apaga la camara de verdad
+  torchTrack = null;
+  document.getElementById('video').classList.add('oculto');
+  document.getElementById('btn-linterna').classList.add('oculto');
+  document.getElementById('btn-camara').textContent = '📷 Escanear con cámara / Scan with camera';
+}
+
+function reiniciar() {
+  burrito = null; registro = null; codigoLeido = ''; fotoBlob = null;
+  document.getElementById('paso-marcar').classList.add('oculto');
+  document.getElementById('paso-scan').classList.remove('oculto');
+  document.getElementById('msg-scan').innerHTML = '';
+  if (usoCamara) toggleCamara();
+}
+
+(async () => {
+  try { if (clave && await claveCorrecta(clave)) { mostrarAcceso(false); cargarRecientes(); return; } } catch (e) {}
+  salirAcceso();
+})();
+</script>
+</body>
+</html>
